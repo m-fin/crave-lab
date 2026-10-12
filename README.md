@@ -8,4 +8,4 @@ Every app lives in its own folder and is served at `https://m-fin.github.io/crav
 
 ## Apps
 
-Coming soon.
+- [Ride Check](ride-check/): accept or pass? Type in a rideshare offer's fare, miles and minutes and see your $/mile, $/hour and profit after car costs.
