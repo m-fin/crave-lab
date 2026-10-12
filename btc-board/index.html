@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>BTC Board</title>
+<meta name="description" content="A big, ad-free Bitcoin board: price, sats per dollar, fees, block height and halving countdown. TV mode for across the room.">
+<meta name="theme-color" content="#000000">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<style>
+:root{--o:#f7931a;--fg:#f2f2f2;--mute:#8a8a8a;--card:#0e0e0e;--line:#262626}
+*{box-sizing:border-box}
+body{margin:0;background:#000;color:var(--fg);font-family:system-ui,-apple-system,sans-serif}
+main{max-width:900px;margin:0 auto;padding:14px 14px 40px}
+header{display:flex;justify-content:space-between;align-items:center}
+h1{font-size:1.4rem;margin:0;color:var(--o)}
+button{font:inherit;font-weight:700;border:0;border-radius:10px;padding:10px 14px;background:var(--o);color:#000;cursor:pointer}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+.tile.big{grid-column:1/-1}
+.k{color:var(--mute);font-size:.8rem;text-transform:uppercase;letter-spacing:1px}
+.v{font-size:1.8rem;font-weight:800;font-variant-numeric:tabular-nums;margin-top:4px}
+.big .v{font-size:3rem;color:var(--o)}
+.s{color:var(--mute);font-size:.85rem;margin-top:2px}
+.fees{display:flex;gap:14px}.fees div{flex:1}
+#status{color:var(--mute);font-size:.8rem;margin-top:10px;text-align:center}
+details{margin-top:12px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px}
+summary{cursor:pointer;color:var(--o);font-weight:700}
+input{width:100%;font-size:1rem;padding:10px;border-radius:10px;border:1px solid var(--line);background:#000;color:var(--fg);margin:6px 0}
+.note{color:var(--mute);font-size:.8rem}
+footer{color:var(--mute);font-size:.8rem;text-align:center;margin-top:16px}footer a{color:var(--o)}
+/* TV mode */
+body.tv main{max-width:none;height:100vh;padding:3vh 3vw;display:flex;flex-direction:column}
+body.tv header h1{font-size:4vh}
+body.tv .ctl,body.tv details,body.tv footer{display:none}
+body.tv{overflow:hidden}body.tv .grid{flex:1;min-height:0;gap:2vh 1.5vw;grid-template-columns:repeat(4,1fr);grid-template-rows:1.4fr 1fr 1fr}
+body.tv .tile{min-height:0;overflow:hidden;padding:1.5vh 1.5vw;display:flex;flex-direction:column;justify-content:center}
+body.tv .tile.big{grid-column:1/-1}
+body.tv .k{font-size:2.4vh}
+body.tv .v{font-size:6.5vh;margin-top:.5vh}
+body.tv .big .v{font-size:16vh;line-height:1}
+body.tv .s{font-size:2.4vh}
+body.tv #status{font-size:2vh;margin-top:1vh}
+body.tv .wide{grid-column:span 2}body.tv #halvT{grid-column:span 3}
+</style>
+</head>
+<body>
+<main>
+<header><h1>₿ BTC Board</h1><button class="ctl" id="tvb">TV mode</button></header>
+<div class="grid">
+<div class="tile big"><div class="k">Price (USD)</div><div class="v" id="price">…</div><div class="s" id="psrc"></div></div>
+<div class="tile"><div class="k">Sats per dollar</div><div class="v" id="sats">…</div></div>
+<div class="tile"><div class="k">Block height</div><div class="v" id="height">…</div></div>
+<div class="tile wide"><div class="k">Fees (sat/vB)</div><div class="fees v"><div><span id="fFast">…</span><div class="s">next block</div></div><div><span id="fHalf">…</span><div class="s">~30 min</div></div><div><span id="fHour">…</span><div class="s">~1 hour</div></div></div></div>
+<div class="tile wide" id="halvT"><div class="k">Next halving</div><div class="v" id="halv">…</div><div class="s" id="halvDate"></div></div>
+<div class="tile"><div class="k">Updated</div><div class="v" id="upd">…</div><div class="s">refreshes every 60s</div></div>
+</div>
+<div id="status"></div>
+<details class="ctl"><summary>Settings</summary>
+<label class="note" for="api">Mempool API base URL (use your own node, e.g. Umbrel or Start9)</label>
+<input id="api" placeholder="https://mempool.space/api">
+<p class="note">Default is https://mempool.space/api. If price isn't available from your node, the price falls back to Coinbase's public price. Saved on this device.</p>
+</details>
+<footer>Free, no ads, no account. Data from <a href="https://mempool.space">mempool.space</a> (or your node) and Coinbase. Halving date is an estimate assuming ~10 minute blocks.<br>A <a href="../">Crave Lab</a> app by <a href="https://github.com/m-fin">Matthew "Frog" Finley</a>.</footer>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const DEF='https://mempool.space/api';
+$('api').value=localStorage.getItem('bb_api')||'';
+const base=()=>($('api').value.trim()||DEF).replace(/\/+$/,'');
+$('api').onchange=()=>{localStorage.setItem('bb_api',$('api').value.trim());refresh()};
+const nf=n=>n.toLocaleString('en-US');
+async function j(u){const r=await fetch(u,{cache:'no-store'});if(!r.ok)throw new Error(r.status);return r.headers.get('content-type')?.includes('json')?r.json():r.text()}
+async function getPrice(){
+ try{const p=await j(base()+'/v1/prices');if(p.USD)return{usd:p.USD,src:'mempool'}}catch(e){}
+ try{const c=await j('https://api.coinbase.com/v2/prices/BTC-USD/spot');return{usd:+c.data.amount,src:'Coinbase'}}catch(e){}
+ const g=await j('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');return{usd:g.bitcoin.usd,src:'CoinGecko'};
+}
+async function refresh(){
+ const errs=[];
+ await Promise.all([
+  getPrice().then(p=>{$('price').textContent='$'+nf(Math.round(p.usd));$('sats').textContent=nf(Math.round(1e8/p.usd));$('psrc').textContent='via '+p.src}).catch(()=>errs.push('price')),
+  j(base()+'/blocks/tip/height').then(h=>{h=+h;$('height').textContent=nf(h);const next=Math.ceil((h+1)/210000)*210000,left=next-h;
+   $('halv').textContent=nf(left)+' blocks';const d=new Date(Date.now()+left*600e3);
+   $('halvDate').textContent=`at block ${nf(next)} · est. ${d.toLocaleDateString([], {year:'numeric',month:'short',day:'numeric'})} (~${Math.round(left*10/60/24)} days)`}).catch(()=>errs.push('height')),
+  j(base()+'/v1/fees/recommended').then(f=>{$('fFast').textContent=f.fastestFee;$('fHalf').textContent=f.halfHourFee;$('fHour').textContent=f.hourFee}).catch(()=>errs.push('fees'))
+ ]);
+ $('upd').textContent=new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+ $('status').textContent=errs.length?`Couldn't load: ${errs.join(', ')}. Retrying in 60s.`:'';
+}
+let lock=null;
+async function wake(){try{if('wakeLock' in navigator&&document.body.classList.contains('tv'))lock=await navigator.wakeLock.request('screen')}catch(e){}}
+function setTV(on){document.body.classList.toggle('tv',on);const u=new URL(location);on?u.searchParams.set('tv','1'):u.searchParams.delete('tv');history.replaceState(null,'',u);if(on)wake();else if(lock){lock.release();lock=null}}
+$('tvb').onclick=()=>{setTV(true);document.documentElement.requestFullscreen?.().catch(()=>{})};
+document.addEventListener('dblclick',()=>{if(document.body.classList.contains('tv')){setTV(false);document.fullscreenElement&&document.exitFullscreen()}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.body.classList.contains('tv'))setTV(false)});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')wake()});
+if(new URLSearchParams(location.search).get('tv')==='1')setTV(true);
+refresh();setInterval(refresh,60000);
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js',{scope:'./'});
+</script>
+</body>
+</html>
