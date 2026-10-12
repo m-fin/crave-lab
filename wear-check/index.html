@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Wear Check: what should I wear?</title>
+<meta name="description" content="Plain-words advice on what to wear now and over the next 12 hours, from a free forecast.">
+<meta name="theme-color" content="#0f1115">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<style>
+:root{--bg:#0f1115;--card:#181b22;--fg:#e8e8e8;--mute:#9aa0a6;--accent:#7cc4ff;--line:#2a2f3a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,sans-serif}
+main{max-width:480px;margin:0 auto;padding:14px 14px 40px}
+h1{font-size:1.5rem;margin:2px 0}.sub{color:var(--mute);margin:0 0 12px;font-size:.9rem}
+.card{background:var(--card);border-radius:14px;padding:14px;margin-bottom:12px}
+#advice{font-size:1.6rem;font-weight:700;line-height:1.3}
+#place{color:var(--mute);font-size:.85rem;margin-bottom:6px}
+#detail{color:var(--mute);font-size:.9rem;margin-top:8px}
+.seg{display:flex;gap:6px;margin-top:8px}.seg button{flex:1}
+button{font:inherit;font-weight:600;border:0;border-radius:10px;padding:10px;background:#252a35;color:var(--fg);cursor:pointer}
+button.on{background:var(--accent);color:#06121d}
+input{width:100%;font-size:1.1rem;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
+.row{display:flex;gap:8px}.row input{flex:1}
+#results button{display:block;width:100%;text-align:left;margin-top:6px;font-weight:400}
+.hours{scrollbar-color:#2a2f3a transparent;scrollbar-width:thin;display:flex;overflow-x:auto;gap:8px;padding-bottom:4px}
+.h{min-width:64px;background:var(--bg);border-radius:10px;padding:8px;text-align:center;font-size:.8rem}
+.h b{display:block;font-size:1.1rem;margin:2px 0}.h i{font-style:normal;color:var(--mute);display:block}
+label{color:var(--mute);font-size:.8rem}
+footer{color:var(--mute);font-size:.8rem;text-align:center;margin-top:16px}footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<main>
+<h1>Wear Check</h1>
+<p class="sub">What to wear now and for the rest of your day, in plain words.</p>
+<div class="card"><div id="place">Finding your location…</div><div id="advice">Loading forecast…</div><div id="detail"></div></div>
+<div class="card"><label>Next 12 hours</label><div class="hours" id="hours"></div></div>
+<div class="card">
+<label>I usually…</label>
+<div class="seg" id="body"><button data-v="warm">Run hot</button><button data-v="normal">Normal</button><button data-v="cold">Run cold</button></div>
+<label style="display:block;margin-top:10px">Units</label>
+<div class="seg" id="units"><button data-v="F">°F</button><button data-v="C">°C</button></div>
+<label style="display:block;margin-top:10px">Location</label>
+<div class="row" style="margin-top:6px"><input id="city" placeholder="Search a city, e.g. Cary"><button id="go">Search</button></div>
+<button id="here" style="width:100%;margin-top:6px">Use my location</button>
+<div id="results"></div>
+</div>
+<footer>Free, no account. Forecast from <a href="https://open-meteo.com/">Open-Meteo</a>. Your settings stay on this device.<br>A <a href="../">Crave Lab</a> app by <a href="https://github.com/m-fin">Matthew "Frog" Finley</a>.</footer>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const L=(k,d)=>{const v=localStorage.getItem('wc_'+k);return v===null?d:JSON.parse(v)},S=(k,v)=>localStorage.setItem('wc_'+k,JSON.stringify(v));
+let body=L('body','normal'),units=L('units','F'),loc=L('loc',null),data=null;
+function seg(id,val,cb){[...$(id).children].forEach(b=>{b.classList.toggle('on',b.dataset.v===val);b.onclick=()=>cb(b.dataset.v)})}
+function drawSeg(){seg('body',body,v=>{body=v;S('body',v);drawSeg();render()});seg('units',units,v=>{units=v;S('units',v);drawSeg();render()})}
+const tdisp=c=>units==='F'?Math.round(c*9/5+32)+'°F':Math.round(c)+'°C';
+// Layer per hour from Open-Meteo feels-like (accounts for humidity and wind), plus a damp-cold nudge, shifted by body setting
+function layer(h){
+ const shift={warm:-3,normal:0,cold:3}[body];const f=h.feels+shift-((h.rh>=85&&h.temp<10)?1.5:0);
+ let top=f>=24?'T-shirt':f>=18?'Light long sleeve':f>=12?'Hoodie':f>=5?'Jacket':f>=-2?'Warm coat':'Heavy coat, hat and gloves';
+ const lvl=f>=24?0:f>=18?1:f>=12?2:f>=5?3:f>=-2?4:5;
+ const wet=h.pp>=50||h.precip>=0.5;
+ return {top,lvl,wet,windy:h.wind>=30,sun:h.uv>=6,f};
+}
+function rainWord(h){return h.temp<=1?'snow gear':'rain jacket'}
+function hr(t){return new Date(t).toLocaleTimeString([], {hour:'numeric'})}
+function render(){
+ if(!data)return;
+ const H=data.hourly,now=Date.now();let i0=H.time.findIndex(t=>new Date(t).getTime()>now-3600e3);if(i0<0)i0=0;
+ const hrs=[];for(let i=i0;i<i0+13&&i<H.time.length;i++)hrs.push({t:H.time[i],temp:H.temperature_2m[i],feels:H.apparent_temperature[i],pp:H.precipitation_probability[i]??0,precip:H.precipitation[i]??0,wind:H.wind_speed_10m[i],rh:H.relative_humidity_2m[i],uv:H.uv_index[i]??0});
+ const cur=data.current?{t:data.current.time,temp:data.current.temperature_2m,feels:data.current.apparent_temperature,pp:hrs[0].pp,precip:data.current.precipitation,wind:data.current.wind_speed_10m,rh:data.current.relative_humidity_2m,uv:hrs[0].uv}:hrs[0];
+ const n=layer(cur);const parts=[];
+ let s=n.top+' now';if(n.wet)s+=' and a '+rainWord(cur);parts.push(s);
+ const later=hrs.slice(1).map(h=>({h,l:layer(h)}));
+ if(!n.wet){const w=later.find(x=>x.l.wet);if(w)parts.push(`${rainWord(w.h)} by ${hr(w.h.t)}`);}
+ const holds=(i,f)=>f(later[i])&&(!later[i+1]||f(later[i+1]));const colder=later.find((x,i)=>holds(i,y=>y.l.lvl>n.lvl));if(colder)parts.push(`${colder.l.top.toLowerCase()} by ${hr(colder.h.t)}`);
+ else{const warmer=later.find((x,i)=>holds(i,y=>y.l.lvl<n.lvl));if(warmer&&n.lvl>0)parts.push(`${warmer.l.top.toLowerCase()} by ${hr(warmer.h.t)}`)}
+ let adv=parts.join(', ')+'.';adv=adv[0].toUpperCase()+adv.slice(1);
+ const extra=[];if([cur,...hrs].some(h=>h.rh>=70&&h.temp>=24))extra.push('Humid and sticky: go breathable, light colors.');else if(cur.rh>=85&&cur.temp<10)extra.push('Damp cold feels colder than the number.');if(n.windy||later.some(x=>x.l.windy))extra.push('It gets windy, so pick something windproof.');
+ const uvh=[cur,...hrs].find(h=>h.uv>=6);if(uvh)extra.push(`UV hits ${Math.round(uvh.uv)} around ${hr(uvh.t)}: sunscreen and sunglasses.`);
+ $('advice').textContent=adv;
+ $('detail').textContent=`Now ${tdisp(cur.temp)}, feels like ${tdisp(cur.feels)}, humidity ${cur.rh}%, wind ${Math.round(units==='F'?cur.wind*0.621:cur.wind)} ${units==='F'?'mph':'km/h'}, ${cur.pp}% rain chance. `+extra.join(' ');
+ $('hours').innerHTML=hrs.map(h=>{const l=layer(h);return `<div class="h">${hr(h.t)}<b>${tdisp(h.feels)}</b><i>${h.pp}% 💧</i><i>${l.top.split(/[ ,]/)[0]}${l.wet?' ☔':''}</i></div>`}).join('');
+}
+async function load(){
+ if(!loc)return;$('place').textContent=loc.name;
+ const u=`https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,wind_speed_10m&hourly=temperature_2m,apparent_temperature,relative_humidity_2m,precipitation_probability,precipitation,wind_speed_10m,uv_index&forecast_hours=24&timezone=auto&timeformat=unixtime`;
+ try{const r=await fetch(u);const j=await r.json();
+  j.hourly.time=j.hourly.time.map(t=>t*1000);if(j.current)j.current.time*=1000;data=j;S('last',j);render();}
+ catch(e){const c=L('last',null);if(c){data=c;render();$('place').textContent=loc.name+' (offline, last saved forecast)'}else $('advice').textContent='Could not load the forecast. Check your connection.'}
+}
+function setLoc(l){loc=l;S('loc',l);$('results').innerHTML='';load()}
+function geo(){
+ if(!navigator.geolocation){$('place').textContent='Location not available. Search a city below.';$('advice').textContent='Search a city below to start.';return}
+ navigator.geolocation.getCurrentPosition(p=>setLoc({lat:p.coords.latitude.toFixed(3),lon:p.coords.longitude.toFixed(3),name:'Your location'}),
+  ()=>{$('place').textContent='Location blocked. Search a city below.';if(!loc)$('advice').textContent='Search a city below to start.'},{timeout:8000});
+}
+async function search(){
+ const q=$('city').value.trim();if(!q)return;
+ try{const j=await (await fetch('https://geocoding-api.open-meteo.com/v1/search?count=5&language=en&format=json&name='+encodeURIComponent(q))).json();
+ $('results').innerHTML='';(j.results||[]).forEach(r=>{const b=document.createElement('button');const n=[r.name,r.admin1,r.country_code].filter(Boolean).join(', ');b.textContent=n;b.onclick=()=>setLoc({lat:r.latitude,lon:r.longitude,name:n});$('results').appendChild(b)});
+ if(!j.results)$('results').textContent='No matches.';}catch(e){$('results').textContent='Search failed. Check your connection.'}
+}
+$('go').onclick=search;$('city').onkeydown=e=>{if(e.key==='Enter')search()};$('here').onclick=geo;
+drawSeg();
+const q=new URLSearchParams(location.search);
+if(q.has('lat')&&q.has('lon'))setLoc({lat:q.get('lat'),lon:q.get('lon'),name:q.get('name')||'Chosen location'});
+else if(loc)load();else geo();
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js',{scope:'./'});
+</script>
+</body>
+</html>
