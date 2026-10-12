@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Calculator</title>
+<meta name="theme-color" content="#1b1d22">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<script src="config.js"></script>
+<script src="stats.js"></script>
+<script src="parser.js"></script>
+<script src="graph.js"></script>
+<style>
+:root{--bg:#1b1d22;--lcd:#b9c7a8;--ink:#1d2416;--key:#3a3f4b;--fn:#2a2e37;--acc:#7cc4ff;--fg:#eee;--mute:#9aa0a6}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,sans-serif}
+main{max-width:440px;margin:0 auto;padding:10px}
+header{display:flex;justify-content:space-between;align-items:baseline}h1{font-size:1.1rem;margin:0}.sub{color:var(--mute);font-size:.75rem}
+#lcd{background:var(--lcd);color:var(--ink);font-family:ui-monospace,Menlo,monospace;border-radius:8px;padding:8px;height:230px;overflow-y:auto;margin:8px 0;font-size:15px}
+.h{cursor:pointer;padding:2px 0}.h .r{text-align:right}.h:hover{background:#0001}
+#line{border-top:1px dashed #0004;padding-top:4px;min-height:22px;word-break:break-all}#line::after{content:"▮";animation:b 1s steps(1) infinite}@keyframes b{50%{opacity:0}}
+.mode{font-size:11px;opacity:.7}
+#keys{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+#keys button{font:600 14px system-ui;border:0;border-radius:8px;padding:11px 2px;background:var(--key);color:var(--fg);cursor:pointer}
+#keys .f{background:var(--fn);font-size:12px}#keys .e{background:var(--acc);color:#06121d}#keys .g{background:#565c3e;font-size:11px}#keys .n{background:#4a505d;font-size:16px}
+#menu{display:none}#menu.on{display:block}
+.mi{display:block;width:100%;text-align:left;font:15px ui-monospace,monospace;background:none;border:0;color:var(--ink);padding:3px;cursor:pointer}.mi:hover{background:#0002}
+.fr{display:flex;align-items:center;gap:6px;margin:3px 0}.fr label{min-width:70px}.fr input,.fr select{flex:1;font:15px ui-monospace,monospace;background:#0001;border:1px solid #0003;padding:3px;color:var(--ink)}
+.kh{font-size:11px;opacity:.75;margin-bottom:4px}
+#lcd:has(#gc){height:auto}#gc{display:block;width:100%;image-rendering:pixelated;background:var(--lcd)}.gl{display:flex;justify-content:space-between;font-size:13px}
+.yr{display:flex;align-items:center;gap:4px;margin:3px 0}.yr input{flex:1;font:15px ui-monospace,monospace;background:#0001;border:1px solid #0003;padding:3px;color:var(--ink)}.yt{font:600 13px ui-monospace,monospace;border:1px solid var(--ink);background:none;color:var(--ink);width:38px;cursor:pointer;border-radius:3px}.yt.on{background:var(--ink);color:var(--lcd)}
+.tb{display:flex;gap:4px;margin-top:3px}.tb button{flex:1;font:13px ui-monospace,monospace;background:#0002;border:0;color:var(--ink);padding:3px;cursor:pointer}
+footer{color:var(--mute);font-size:.7rem;margin-top:10px;line-height:1.4}
+</style>
+</head>
+<body>
+<main>
+<header><h1 id="appname"></h1><span class="sub" id="tag"></span></header>
+<div id="lcd"><div id="hist"></div><div id="menu"></div><div id="line"></div><div class="mode" id="mode"></div></div>
+<div id="keys"></div>
+<footer><span id="disc"></span> Tap any history line to edit it. Everything runs on your device and works offline.</footer>
+</main>
+<script>
+document.title=APP.NAME+': '+APP.TAGLINE;appname.textContent=APP.NAME;tag.textContent='free · offline · no ROM';disc.textContent=APP.DISCLAIMER;
+let buf='',ans=0,second=false,hist=JSON.parse(localStorage.getItem('calc.hist')||'[]'),vars=JSON.parse(localStorage.getItem('calc.vars')||'{}'),deg=false;
+// ---- own expression parser (parser.js, no eval) ----
+function parse(s){return CALCP.parse(s,{vars,ans,deg,store:(k,v)=>{vars[k]=v;localStorage.setItem('calc.vars',JSON.stringify(vars))}})}
+function fmt(v){if(!isFinite(v))return'ERR:DOMAIN';if(v===0)return'0';const a=Math.abs(v);if(a>=1e10||a<1e-3)return v.toExponential(9).replace(/\.?0+e/,'ᴇ').replace('ᴇ+','ᴇ');return String(+v.toPrecision(10))}
+function draw(){hist=hist.slice(-200);localStorage.setItem('calc.hist',JSON.stringify(hist));
+ document.getElementById('hist').innerHTML=hist.map((h,i)=>`<div class="h" data-i="${i}"><div>${esc(h.e)}</div><div class="r">${esc(h.r)}</div></div>`).join('');
+ line.textContent=buf;mode.textContent=(second?'2ND ':'')+(deg?'DEGREE':'RADIAN');lcd.scrollTop=1e9}
+const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'})[c]);
+document.getElementById('hist').onclick=e=>{const d=e.target.closest('.h');if(d){buf=hist[d.dataset.i].e;draw()}};
+function enter(){if(!buf&&hist.length)buf=hist[hist.length-1].e;if(!buf)return;let r;try{const v=parse(buf.replace(/^([+\-×÷^])/,'Ans$1'));ans=v;r=fmt(v)}catch(x){r='ERR:'+(typeof x==='string'?x:'SYNTAX')}hist.push({e:buf,r});buf='';draw()}
+// ---- GRAPHING: Y= / WINDOW / ZOOM / TRACE / GRAPH ----
+const YC=['#1d2416','#2a52be','#b0302a','#2e7d32'];
+let Y=JSON.parse(localStorage.getItem('calc.y')||'null')||[{e:'',on:true},{e:'',on:true},{e:'',on:true},{e:'',on:true}];
+let WIN=JSON.parse(localStorage.getItem('calc.win')||'null')||{...GRAPH.ZSTANDARD},tr=null;
+const saveG=()=>{localStorage.setItem('calc.y',JSON.stringify(Y));localStorage.setItem('calc.win',JSON.stringify(WIN))};
+function fns(){return Y.map((y,i)=>{if(!y.on||!y.e.trim())return null;try{return{i,f:CALCP.compile(y.e,{vars,ans,deg})}}catch(e){return{i,err:true}}}).filter(Boolean)}
+function yEditor(){showMenu('<div class="kh">Y= · Plot1 off · tap the box to turn a function on/off · use X as the variable</div>'+Y.map((y,i)=>`<div class="yr"><button class="yt ${y.on?'on':''}" data-i="${i}">Y${i+1}</button><span style="color:${YC[i]}">=</span><input id="y_${i}" value="${esc(y.e)}" autocomplete="off" autocapitalize="characters"></div>`).join('')+'<div class="tb"><button id="ygo">GRAPH</button></div>');
+ menu.querySelectorAll('.yt').forEach(b=>b.onclick=()=>{Y[b.dataset.i].on=!Y[b.dataset.i].on;b.classList.toggle('on');saveG()});
+ Y.forEach((y,i)=>{const el=document.getElementById('y_'+i);el.oninput=()=>{Y[i].e=el.value.replace(/x/g,'X').replace(/\*/g,'×');saveG()};el.onkeydown=e=>{if(e.key==='Enter')graph()}});ygo.onclick=graph}
+function winForm(){const ks=['Xmin','Xmax','Xscl','Ymin','Ymax','Yscl'];showMenu('<div class="kh">WINDOW</div>'+ks.map(k=>`<div class="fr"><label>${k}=</label><input inputmode="decimal" id="w_${k}" value="${WIN[k]}"></div>`).join('')+'<div id="werr"></div><div class="tb"><button id="wgo">GRAPH</button></div>');
+ const rd=()=>{const w={};ks.forEach(k=>{try{w[k]=parse(document.getElementById('w_'+k).value)}catch(e){w[k]=NaN}});return w};
+ ks.forEach(k=>document.getElementById('w_'+k).oninput=()=>{const w=rd();if(GRAPH.valid(w)){WIN=w;saveG();werr.textContent=''}else werr.innerHTML='<b>ERR:WINDOW RANGE</b>'});
+ wgo.onclick=()=>{if(GRAPH.valid(rd()))graph()}}
+function zoomMenu(){const Z=[['2','Zoom In',()=>{WIN=GRAPH.zoom(WIN,4)}],['3','Zoom Out',()=>{WIN=GRAPH.zoom(WIN,1/4)}],['4','ZDecimal',()=>{WIN={...GRAPH.ZDECIMAL}}],['6','ZStandard',()=>{WIN={...GRAPH.ZSTANDARD}}]];
+ showMenu('<div class="kh">ZOOM (Zoom In/Out use factor 4 about the center, or the trace cursor)</div>'+Z.map((z,i)=>`<button class="mi" data-i="${i}">${z[0]}:${z[1]}</button>`).join(''));
+ menu.querySelectorAll('.mi').forEach(b=>b.onclick=()=>{const c=lastTr;lastTr=null;if(c&&Z[b.dataset.i][0]<'4')WIN=GRAPH.zoom(WIN,b.dataset.i==='0'?4:1/4,c[0],c[1]);else Z[b.dataset.i][2]();saveG();graph()})}
+let lastTr=null;
+function graph(keepTrace){const t=keepTrace?tr:null;showMenu('<canvas id="gc" width="380" height="250"></canvas><div class="gl"><span id="gt"></span><span id="gx"></span><span id="gy"></span></div><div class="tb" id="tbar"></div>');tr=t;
+ const c=gc,x=c.getContext('2d'),W=c.width,H=c.height,w=WIN;x.fillStyle='#b9c7a8';x.fillRect(0,0,W,H);
+ x.fillStyle='#1d2416';const[ox,oy]=GRAPH.toPx(w,W,H,0,0);
+ x.globalAlpha=.55;GRAPH.ticks(w.Xmin,w.Xmax,w.Xscl).forEach(v=>{const p=GRAPH.toPx(w,W,H,v,0)[0];if(oy>=0&&oy<H)x.fillRect(Math.round(p),Math.round(oy)-2,1,5)});
+ GRAPH.ticks(w.Ymin,w.Ymax,w.Yscl).forEach(v=>{const p=GRAPH.toPx(w,W,H,0,v)[1];if(ox>=0&&ox<W)x.fillRect(Math.round(ox)-2,Math.round(p),5,1)});
+ if(oy>=0&&oy<H)x.fillRect(0,Math.round(oy),W,1);if(ox>=0&&ox<W)x.fillRect(Math.round(ox),0,1,H);x.globalAlpha=1;
+ const fs=fns();let err='';fs.forEach(o=>{if(o.err){err+=' Y'+(o.i+1)+':ERR';return}x.strokeStyle=YC[o.i];x.lineWidth=2;GRAPH.sample(o.f,w,W,H).forEach(s=>{x.beginPath();s.forEach(([a,b],j)=>j?x.lineTo(a,b):x.moveTo(a,b));x.stroke()})});
+ gt.textContent=err.trim();
+ if(tr){const live=fs.filter(o=>!o.err);if(!live.length){tr=null;gt.textContent='No Y= functions on';return}
+  if(!live.some(o=>o.i===tr.fi))tr.fi=live[0].i;const o=live.find(o=>o.i===tr.fi),X=GRAPH.traceX(w,tr.k),Yv=o.f(X);lastTr=[X,isFinite(Yv)?Yv:(w.Ymin+w.Ymax)/2];
+  gt.textContent='Y'+(o.i+1)+'='+Y[o.i].e;gx.textContent='X='+fmt(X);gy.textContent='Y='+(isFinite(Yv)?fmt(Yv):'');
+  if(isFinite(Yv)){const[px,py]=GRAPH.toPx(w,W,H,X,Yv);x.strokeStyle='#000';x.lineWidth=1;x.strokeRect(Math.round(px)-3.5,Math.round(py)-3.5,7,7);x.beginPath();x.moveTo(px-6,py);x.lineTo(px+6,py);x.moveTo(px,py-6);x.lineTo(px,py+6);x.stroke()}
+  tbar.innerHTML='<button data-k="ArrowUp">▲ Y</button><button data-k="ArrowLeft">◀</button><button data-k="ArrowRight">▶</button><button data-k="ArrowDown">▼ Y</button>';tbar.querySelectorAll('button').forEach(b=>b.onclick=()=>trMove(b.dataset.k))}}
+function trace(){if(!tr)tr={k:GRAPH.TRACE_STEPS/2,fi:0};graph(true)}
+function trMove(key){const live=fns().filter(o=>!o.err).map(o=>o.i);if(!live.length)return;let j=live.indexOf(tr.fi);
+ if(key==='ArrowRight'||key==='ArrowLeft'){tr.k+=key==='ArrowRight'?1:-1;if(tr.k<0||tr.k>GRAPH.TRACE_STEPS){const d=(WIN.Xmax-WIN.Xmin)*(key==='ArrowRight'?1:-1)/GRAPH.TRACE_STEPS;WIN={...WIN,Xmin:+(WIN.Xmin+d).toPrecision(12),Xmax:+(WIN.Xmax+d).toPrecision(12)};tr.k=Math.max(0,Math.min(GRAPH.TRACE_STEPS,tr.k));saveG()}}
+ else if(key==='ArrowUp')tr.fi=live[(j-1+live.length)%live.length];else if(key==='ArrowDown')tr.fi=live[(j+1)%live.length];graph(true)}
+const GK={'y=':()=>{tr=null;yEditor()},window:()=>{tr=null;winForm()},zoom:()=>{tr=null;zoomMenu()},trace,graph:()=>{lastTr=null;tr=null;graph()}};
+// ---- keypad ----
+const K=[['y=','g','Y='],['window','g','WINDOW'],['zoom','g','ZOOM'],['trace','g','TRACE'],['graph','g','GRAPH'],
+['2nd','f','2nd'],['mode','f','DEG/RAD'],['del','f','DEL'],['stat','f','STAT'],['clear','f','CLEAR'],
+['^','f','^'],['x²','f','x²',"√("],['(','f','('],[')','f',')'],['÷','f','÷'],
+['sin(','f','SIN','sin⁻¹('],['cos(','f','COS','cos⁻¹('],['tan(','f','TAN','tan⁻¹('],['log(','f','LOG'],['ln(','f','LN'],
+['7','n'],['8','n'],['9','n'],['×','f','×'],['distr','f','DISTR'],
+['4','n'],['5','n'],['6','n'],['-','f','−'],['→','f','STO→'],
+['1','n'],['2','n'],['3','n'],['+','f','+'],['π','f','π','e'],
+['0','n'],['.','n'],['⁻','f','(−)'],[',','f',','],['enter','e','ENTER','Ans']];
+K.forEach(([k,c,l,s2])=>{const b=document.createElement('button');b.className=c;b.textContent=l||k;b.title=s2?'2nd: '+s2:'';b.onclick=()=>press(k,s2);keys.appendChild(b)});
+function press(k,s2){if(GK[k]){second=false;return GK[k]()}if(menu.classList.contains('on')&&k!=='clear'&&k!=='stat'&&k!=='distr')return;
+ if(second&&s2){second=false;buf+=s2;return draw()}
+ if(k==='2nd'){second=!second;return draw()}second=false;
+ if(k==='enter')return enter();if(k==='del'){buf=buf.slice(0,-1);return draw()}
+ if(k==='clear'){if(menu.classList.contains('on')){closeMenu()}else buf='';return draw()}
+ if(k==='mode'){deg=!deg;return draw()}if(k==='x²')k='²';if(k==='stat')return statMenu();if(k==='distr')return distrMenu();
+ if(!buf&&/^[+\-×÷^²→]/.test(k))buf='Ans';buf+=k;draw()}
+document.addEventListener('keydown',e=>{if(tr&&/^Arrow/.test(e.key)){e.preventDefault();return trMove(e.key)}if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT')return;const m={Enter:'enter',Backspace:'del',Escape:'clear','*':'×','/':'÷'};const k=m[e.key]||e.key;if(/^[0-9.+\-()^,]$/.test(k)||m[e.key]){e.preventDefault();press(k)}});
+// ---- STAT TESTS / DISTR menus ----
+function closeMenu(){tr=null;menu.classList.remove('on');menu.innerHTML='';line.style.display=''}
+function showMenu(html){menu.innerHTML=html;menu.classList.add('on');line.style.display='none';lcd.scrollTop=1e9}
+const TESTS=[['1','Z-Test…','ZTest',[['μ0','mu0'],['σ','sigma'],['x̄','xbar'],['n','n']],1],
+['2','T-Test…','TTest',[['μ0','mu0'],['x̄','xbar'],['Sx','sx'],['n','n']],1],
+['3','2-SampZTest…','2-SampZTest',[['σ1','s1'],['σ2','s2'],['x̄1','x1'],['n1','n1'],['x̄2','x2'],['n2','n2']],1],
+['4','2-SampTTest…','2-SampTTest',[['x̄1','x1'],['Sx1','sx1'],['n1','n1'],['x̄2','x2'],['Sx2','sx2'],['n2','n2']],2],
+['5','1-PropZTest…','1-PropZTest',[['p0','p0'],['x','x'],['n','n']],1],
+['6','2-PropZTest…','2-PropZTest',[['x1','x1'],['n1','n1'],['x2','x2'],['n2','n2']],1],
+['7','ZInterval…','ZInterval',[['σ','sigma'],['x̄','xbar'],['n','n'],['C-Level','level']],0],
+['8','TInterval…','TInterval',[['x̄','xbar'],['Sx','sx'],['n','n'],['C-Level','level']],0],
+['A','1-PropZInt…','1-PropZInt',[['x','x'],['n','n'],['C-Level','level']],0]];
+function statMenu(){showMenu('<div class="kh">STAT ▶ TESTS (keystrokes: STAT ▶ ▶ then number)</div>'+TESTS.map((t,i)=>`<button class="mi" data-i="${i}">${t[0]}:${t[1]}</button>`).join(''));menu.querySelectorAll('.mi').forEach(b=>b.onclick=()=>form(TESTS[b.dataset.i]))}
+function form([num,label,fn,fields,altKind]){const saved=JSON.parse(localStorage.getItem('calc.f.'+fn)||'{}');
+ let h=`<div class="kh">${fn} · keystrokes: STAT ▶ ▶ ${num}</div><div class="fr"><label>Inpt:</label><b>Stats</b></div>`;
+ fields.forEach(([l,k])=>h+=`<div class="fr"><label>${l}:</label><input inputmode="decimal" id="f_${k}" value="${saved[k]??(k==='level'?'.95':'')}"></div>`);
+ if(altKind)h+=`<div class="fr"><label>${fields[0][1]==='p0'?'prop':fields[0][1].startsWith('x')&&fn.startsWith('2-Prop')?'p1':fn.startsWith('2')?'μ1':'μ'}:</label><select id="f_alt"><option>≠</option><option>&lt;</option><option>&gt;</option></select>${fn.startsWith('2')&&!fn.includes('Prop')?' μ2':' μ0'}</div>`;
+ if(altKind===2)h+=`<div class="fr"><label>Pooled:</label><select id="f_pooled"><option value="">No</option><option value="1">Yes</option></select></div>`;
+ h+=`<button class="mi" id="calcbtn"><b>Calculate</b></button><div id="out"></div>`;showMenu(h);
+ if(saved.alt)f_alt.value=saved.alt;
+ calcbtn.onclick=()=>{const a={};let bad=false;fields.forEach(([l,k])=>{let s=document.getElementById('f_'+k).value.trim();let v;try{v=parse(s)}catch(e){v=NaN}if(s===''||!isFinite(v))bad=true;a[k]=v;saved[k]=s});
+  if(bad){out.innerHTML='<b>ERR:INVALID INPUT</b>';return}
+  if(altKind){a.alt=f_alt.value;saved.alt=a.alt}if(altKind===2)a.pooled=!!f_pooled.value;localStorage.setItem('calc.f.'+fn,JSON.stringify(saved));
+  const r=STATS.tests[fn](a);let o=`<b>${fn}</b>`;if(a.alt)o+=`<div>${fn.includes('Prop')?'prop':'μ'}${a.alt}${a.mu0??a.p0??'μ2'}</div>`;
+  for(const[k,v]of Object.entries(r))o+=`<div>${k}=${fmt(v)}</div>`;out.innerHTML=o;
+  hist.push({e:fn+'('+fields.map(f=>saved[f[1]]).join(',')+(a.alt?','+a.alt:'')+')',r:Object.entries(r).slice(0,2).map(([k,v])=>k+'='+fmt(v)).join(' ')});localStorage.setItem('calc.hist',JSON.stringify(hist.slice(-200)));lcd.scrollTop=1e9}}
+function distrMenu(){const D=[['2','normalcdf(','normalcdf(lower,upper[,μ,σ])'],['3','invNorm(','invNorm(area[,μ,σ])'],['6','tcdf(','tcdf(lower,upper,df)']];
+ showMenu('<div class="kh">2ND VARS: DISTR</div>'+D.map((d,i)=>`<button class="mi" data-i="${i}">${d[0]}:${d[2]}</button>`).join(''));
+ menu.querySelectorAll('.mi').forEach(b=>b.onclick=()=>{closeMenu();buf+=D[b.dataset.i][1];draw()})}
+draw();if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');
+</script>
+</body>
+</html>
