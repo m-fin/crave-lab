@@ -2,28 +2,44 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Ride Check: accept or pass?</title>
 <meta name="description" content="Type in a ride offer's fare, miles and minutes and see if it's worth taking after your car costs.">
+<meta name="theme-color" content="#0f1115">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <style>
-:root{--bg:#0f1115;--card:#181b22;--fg:#e8e8e8;--mute:#9aa0a6;--ok:#2ecc71;--no:#e74c3c;--mid:#f1c40f;--accent:#7cc4ff}
+:root{--bg:#0f1115;--card:#181b22;--fg:#e8e8e8;--mute:#9aa0a6;--ok:#2ecc71;--no:#e74c3c;--mid:#f1c40f;--accent:#7cc4ff;--line:#2a2f3a}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,sans-serif}
-main{max-width:460px;margin:0 auto;padding:20px 16px 40px}
-h1{font-size:1.6rem;margin:4px 0}
-.sub{color:var(--mute);margin:0 0 16px}
-.card{background:var(--card);border-radius:14px;padding:16px;margin-bottom:14px}
-label{display:block;font-size:.85rem;color:var(--mute);margin:10px 0 4px}
-input{width:100%;font-size:1.4rem;padding:12px;border-radius:10px;border:1px solid #2a2f3a;background:#0f1115;color:var(--fg)}
-.row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
-.row input{font-size:1.2rem}
-#verdict{font-size:2.6rem;font-weight:800;text-align:center;margin:6px 0}
-.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:.95rem}
-.stats div{background:#0f1115;border-radius:8px;padding:8px}
-.stats b{display:block;font-size:1.15rem}
-#why{color:var(--mute);text-align:center;font-size:.9rem;margin-top:8px}
-summary{cursor:pointer;color:var(--accent)}
-footer{color:var(--mute);font-size:.8rem;text-align:center}
+main{max-width:480px;margin:0 auto;padding:14px 14px 40px}
+h1{font-size:1.5rem;margin:2px 0}
+.sub{color:var(--mute);margin:0 0 12px;font-size:.9rem}
+.card{background:var(--card);border-radius:14px;padding:14px;margin-bottom:12px}
+label{display:block;font-size:.8rem;color:var(--mute);margin:8px 0 4px}
+input,select{width:100%;font-size:1.5rem;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
+input:focus{outline:2px solid var(--accent);border-color:transparent}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.g3 input{font-size:1.25rem;padding:10px}
+.presets{display:flex;gap:8px;margin-top:10px}
+button{font:inherit;font-weight:600;border:0;border-radius:10px;padding:12px;background:#252a35;color:var(--fg);cursor:pointer}
+button:active{transform:scale(.97)}
+.presets button{flex:1;font-size:.95rem}.presets small{display:block;font-weight:400;color:var(--mute);font-size:.72rem}
+#verdict{font-size:3rem;font-weight:800;text-align:center;margin:2px 0;letter-spacing:1px}
+#line{text-align:center;font-size:1rem;margin:4px 0 2px}
+#why{color:var(--mute);text-align:center;font-size:.88rem;margin:4px 0 10px}
+.save{width:100%;background:var(--accent);color:#06121d;font-size:1.1rem}
+summary{cursor:pointer;color:var(--accent);font-weight:600}
+.note{color:var(--mute);font-size:.8rem;margin:8px 0 0}
+table{width:100%;border-collapse:collapse;font-size:.85rem;margin-top:8px}
+td,th{padding:6px 4px;border-bottom:1px solid var(--line);text-align:left}th{color:var(--mute);font-weight:500}
+.A{color:var(--ok)}.M{color:var(--mid)}.P{color:var(--no)}
+.btns{display:flex;gap:8px;margin-top:10px}.btns button{flex:1;font-size:.9rem}
+.tog{display:flex;align-items:center;gap:10px;margin-top:10px}.tog input{width:auto;transform:scale(1.4)}
+.soon{border:1px dashed var(--line)}
+footer{color:var(--mute);font-size:.8rem;text-align:center;margin-top:16px}
 footer a{color:var(--accent)}
 </style>
 </head>
@@ -34,60 +50,128 @@ footer a{color:var(--accent)}
 
 <div class="card">
 <label for="fare">Fare offered ($)</label>
-<input id="fare" type="number" inputmode="decimal" step="0.01" placeholder="12.50">
-<div class="row">
-<div><label for="pmiles">Pickup mi</label><input id="pmiles" type="number" inputmode="decimal" step="0.1" placeholder="2"></div>
-<div><label for="tmiles">Trip mi</label><input id="tmiles" type="number" inputmode="decimal" step="0.1" placeholder="8"></div>
-<div><label for="mins">Total min</label><input id="mins" type="number" inputmode="decimal" step="1" placeholder="20"></div>
+<input id="fare" type="text" inputmode="decimal" placeholder="12.50" autocomplete="off">
+<div class="g3">
+<div><label for="pmiles">Pickup mi</label><input id="pmiles" type="text" inputmode="decimal" placeholder="2"></div>
+<div><label for="tmiles">Trip mi</label><input id="tmiles" type="text" inputmode="decimal" placeholder="8"></div>
+<div><label for="rmiles">Return mi <small>(opt.)</small></label><input id="rmiles" type="text" inputmode="decimal" placeholder="0"></div>
 </div>
+<div class="g2">
+<div><label for="mins">Total minutes</label><input id="mins" type="text" inputmode="decimal" placeholder="20"></div>
+<div><label for="rating">Rider rating <small>(opt.)</small></label><input id="rating" type="text" inputmode="decimal" placeholder="4.9"></div>
+</div>
+<div class="presets" id="presets"></div>
 </div>
 
 <div class="card">
 <div id="verdict">-</div>
-<div class="stats">
-<div>Per mile<b id="perMile">-</b></div>
-<div>Per hour (gross)<b id="perHr">-</b></div>
-<div>Car cost<b id="cost">-</b></div>
-<div>Profit per hour<b id="netHr">-</b></div>
-</div>
-<p id="why"></p>
+<div id="line"></div>
+<div id="why"></div>
+<button class="save" id="save">Save to history</button>
 </div>
 
 <div class="card">
 <details>
 <summary>Your settings (saved on this device)</summary>
-<label for="cpm">Your car cost per mile, gas plus wear ($)</label>
-<input id="cpm" type="number" step="0.01" value="0.30">
-<label for="minMile">Minimum $ per mile</label>
-<input id="minMile" type="number" step="0.05" value="1.00">
-<label for="minHr">Minimum profit per hour ($)</label>
-<input id="minHr" type="number" step="1" value="20">
-<p class="sub" style="margin-top:10px">These starting numbers are just examples, so change them to match your own car and goals.</p>
+<label for="cpm">Car cost per mile, gas plus wear ($)</label>
+<input id="cpm" type="text" inputmode="decimal" value="0.30">
+<div class="g2">
+<div><label for="minMile">Minimum $/mile</label><input id="minMile" type="text" inputmode="decimal" value="1.00"></div>
+<div><label for="tgtMile">Target $/mile</label><input id="tgtMile" type="text" inputmode="decimal" value="1.50"></div>
+<div><label for="minHr">Minimum profit $/hr</label><input id="minHr" type="text" inputmode="decimal" value="20"></div>
+<div><label for="tgtHr">Target profit $/hr</label><input id="tgtHr" type="text" inputmode="decimal" value="30"></div>
+</div>
+<label for="minRating">Minimum rider rating (blank = ignore)</label>
+<input id="minRating" type="text" inputmode="decimal" value="4.70">
+<p class="note">Below minimum = PASS, between minimum and target = MAYBE, at or above target = ACCEPT. A rider rating under your minimum knocks the verdict down one step. All starting numbers are examples only. Change them to match your car and goals.</p>
+<label>One-tap presets (pickup mi / trip mi / minutes)</label>
+<div id="presetEdit"></div>
+<label class="tog"><input type="checkbox" id="speak"> Speak the verdict out loud (off by default)</label>
 </details>
 </div>
 
-<footer>Free, no account, nothing leaves your phone. A <a href="../">Crave Lab</a> app by <a href="https://github.com/m-fin">Matthew "Frog" Finley</a>.</footer>
+<div class="card">
+<details>
+<summary>History &amp; mileage log</summary>
+<div id="hist"></div>
+<label for="irs">IRS standard business mileage rate ($/mi). 2026 rate for miles from July 1, 2026 is $0.76 (it was $0.725 Jan 1 to Jun 30). Editable.</label>
+<input id="irs" type="text" inputmode="decimal" value="0.76">
+<p class="note" id="tax"></p>
+<p class="note">Estimate only, not tax advice. Source: <a style="color:var(--accent)" href="https://www.irs.gov/tax-professionals/standard-mileage-rates">IRS standard mileage rates</a> (Announcement 2026-11). Saved offers aren't proof of miles you actually drove, so keep a real mileage log for taxes.</p>
+<div class="btns"><button id="csv">Export CSV</button><button id="clear">Clear history</button></div>
+</details>
+</div>
+
+<div class="card soon">
+<b>Import your Uber trip history</b>
+<p class="note">Coming soon: load the data file you download from Uber's privacy page to see your real $/mile and best hours. It will be read only on your device.</p>
+</div>
+
+<footer>Free, no account. Doesn't read or touch the Uber or Lyft apps.<br>A <a href="../">Crave Lab</a> app by <a href="https://github.com/m-fin">Matthew "Frog" Finley</a>.</footer>
 </main>
 <script>
 const $=id=>document.getElementById(id);
-const settings=['cpm','minMile','minHr'];
-settings.forEach(k=>{const v=localStorage.getItem('rc_'+k);if(v!==null)$(k).value=v;});
+const L=(k,d)=>{try{const v=localStorage.getItem('rc_'+k);return v===null?d:JSON.parse(v)}catch(e){return d}};
+const S=(k,v)=>localStorage.setItem('rc_'+k,JSON.stringify(v));
+const num=s=>{const n=parseFloat(String(s).replace(',','.').replace(/[^0-9.\-]/g,''));return isFinite(n)?n:0};
 const money=n=>'$'+n.toFixed(2);
-function calc(){
- settings.forEach(k=>localStorage.setItem('rc_'+k,$(k).value));
- const fare=+$('fare').value,pm=+$('pmiles').value||0,tm=+$('tmiles').value||0,mins=+$('mins').value;
- const cpm=+$('cpm').value||0,minMile=+$('minMile').value||0,minHr=+$('minHr').value||0;
- const miles=pm+tm,v=$('verdict');
- if(!fare||!miles||!mins){v.textContent='-';v.style.color='';['perMile','perHr','cost','netHr'].forEach(i=>$(i).textContent='-');$('why').textContent='Enter the fare, miles and minutes.';return;}
- const perMile=fare/miles,perHr=fare/mins*60,cost=miles*cpm,netHr=(fare-cost)/mins*60;
- $('perMile').textContent=money(perMile);$('perHr').textContent=money(perHr);$('cost').textContent=money(cost);$('netHr').textContent=money(netHr);
- const okMile=perMile>=minMile,okHr=netHr>=minHr;
- if(okMile&&okHr){v.textContent='ACCEPT';v.style.color='var(--ok)';$('why').textContent='Clears both of your minimums.';}
- else if(okMile||okHr){v.textContent='MAYBE';v.style.color='var(--mid)';$('why').textContent=okMile?'Good per mile, but under your hourly goal.':'Good hourly, but under your per-mile minimum.';}
- else{v.textContent='PASS';v.style.color='var(--no)';$('why').textContent='Under both of your minimums.';}
+const settings=['cpm','minMile','tgtMile','minHr','tgtHr','minRating','irs'];
+settings.forEach(k=>{const v=L(k,null);if(v!==null)$(k).value=v;});
+$('speak').checked=L('speak',false);
+let presets=L('presets',[{n:'Short',p:1,t:3,m:10},{n:'Medium',p:2,t:8,m:20},{n:'Long',p:3,t:20,m:40}]);
+let hist=L('hist',[]);
+const q=new URLSearchParams(location.search);
+[['fare','fare'],['pm','pmiles'],['tm','tmiles'],['rm','rmiles'],['min','mins'],['r','rating']].forEach(([a,b])=>{if(q.has(a))$(b).value=q.get(a)});
+function drawPresets(){
+ $('presets').innerHTML='';$('presetEdit').innerHTML='';
+ presets.forEach((p,i)=>{
+  const b=document.createElement('button');b.innerHTML=`${p.n}<small>${p.p}+${p.t} mi · ${p.m} min</small>`;
+  b.onclick=()=>{$('pmiles').value=p.p;$('tmiles').value=p.t;$('mins').value=p.m;calc();$('fare').focus()};$('presets').appendChild(b);
+  const r=document.createElement('div');r.className='g3';r.style.marginBottom='6px';
+  ['p','t','m'].forEach(k=>{const x=document.createElement('input');x.inputMode='decimal';x.value=p[k];x.setAttribute('aria-label',p.n+' '+k);x.oninput=()=>{presets[i][k]=num(x.value);S('presets',presets);drawPresets2()};r.appendChild(x)});
+  $('presetEdit').appendChild(r);
+ });
 }
-document.querySelectorAll('input').forEach(i=>i.addEventListener('input',calc));
-calc();
+function drawPresets2(){[...$('presets').children].forEach((b,i)=>{const p=presets[i];b.innerHTML=`${p.n}<small>${p.p}+${p.t} mi · ${p.m} min</small>`})}
+let cur=null,lastSpoken='',spT;
+function calc(){
+ settings.forEach(k=>S(k,$(k).value));
+ const fare=num($('fare').value),pm=num($('pmiles').value),tm=num($('tmiles').value),rm=num($('rmiles').value),mins=num($('mins').value),rating=$('rating').value.trim()?num($('rating').value):null;
+ const cpm=num($('cpm').value),minMile=num($('minMile').value),tgtMile=num($('tgtMile').value),minHr=num($('minHr').value),tgtHr=num($('tgtHr').value),minR=$('minRating').value.trim()?num($('minRating').value):null;
+ const miles=pm+tm+rm,v=$('verdict');
+ if(!fare||!miles||!mins){v.textContent='-';v.className='';$('line').textContent='';$('why').textContent='Type the fare, miles and minutes.';cur=null;return;}
+ const perMile=fare/miles,perHr=fare/mins*60,cost=miles*cpm,net=fare-cost,netHr=net/mins*60;
+ const lvl=(x,mn,tg)=>x<mn?0:x>=tg?2:1;
+ const lm=lvl(perMile,minMile,tgtMile),lh=lvl(netHr,minHr,tgtHr);
+ let l=Math.min(lm,lh);const why=[];
+ const nm=['under minimum','between minimum and target','at or above target'];
+ why.push(`$/mi ${nm[lm]}`,`profit/hr ${nm[lh]}`);
+ if(rm)why.push(`includes ${rm} mi return`);
+ if(minR!==null&&rating!==null&&rating<minR&&l>0){l--;why.push(`rider rating ${rating} is under your ${minR} minimum, so knocked down one step`);}
+ else if(minR!==null&&rating!==null&&rating<minR)why.push(`rider rating ${rating} is under your ${minR} minimum`);
+ const V=['PASS','MAYBE','ACCEPT'][l];v.textContent=V;v.className='PMA'[l];
+ $('line').textContent=`${money(perMile)}/mi · ${money(perHr).replace('.00','')}/hr gross · ${money(netHr)}/hr profit after ${money(cost)} car cost`;
+ $('why').textContent=why.join(' · ');
+ cur={t:Date.now(),fare,pm,tm,rm,miles,mins,rating,perMile,netHr,cost,v:V};
+ if($('speak').checked&&'speechSynthesis' in window){clearTimeout(spT);spT=setTimeout(()=>{if(V!==lastSpoken){lastSpoken=V;speechSynthesis.cancel();speechSynthesis.speak(new SpeechSynthesisUtterance(V.toLowerCase()+', '+money(netHr)+' an hour'))}},900)}
+}
+function drawHist(){
+ const irs=num($('irs').value);
+ if(!hist.length){$('hist').innerHTML='<p class="note">No saved offers yet. Tap "Save to history" after a check.</p>';$('tax').textContent='';return;}
+ $('hist').innerHTML='<table><tr><th>Time</th><th>Fare</th><th>Mi</th><th>Verdict</th></tr>'+hist.map(h=>`<tr><td>${new Date(h.t).toLocaleString([], {month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})}</td><td>${money(h.fare)}</td><td>${h.miles.toFixed(1)}</td><td class="${h.v[0]}">${h.v}</td></tr>`).join('')+'</table>';
+ const acc=hist.filter(h=>h.v==='ACCEPT'),mi=acc.reduce((a,h)=>a+h.miles,0);
+ $('tax').textContent=irs?`Saved ACCEPT offers: ${mi.toFixed(1)} mi × $${irs} = ${money(mi*irs)} possible deduction (estimate).`:'Enter an IRS rate to see a deduction estimate.';
+}
+$('save').onclick=()=>{if(!cur)return;hist.unshift(cur);hist=hist.slice(0,50);S('hist',hist);drawHist();$('save').textContent='Saved ✓';setTimeout(()=>$('save').textContent='Save to history',1200)};
+$('clear').onclick=()=>{if(confirm('Clear all saved offers on this device?')){hist=[];S('hist',hist);drawHist()}};
+$('csv').onclick=()=>{
+ const rows=[['time','fare','pickup_mi','trip_mi','return_mi','total_mi','minutes','rider_rating','per_mile','profit_per_hr','car_cost','verdict']].concat(hist.map(h=>[new Date(h.t).toISOString(),h.fare,h.pm,h.tm,h.rm||0,h.miles,h.mins,h.rating??'',h.perMile.toFixed(2),h.netHr.toFixed(2),h.cost.toFixed(2),h.v]));
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.map(r=>r.join(',')).join('\n')],{type:'text/csv'}));a.download='ride-check-history.csv';a.click();
+};
+$('speak').onchange=()=>{S('speak',$('speak').checked);lastSpoken=''};
+document.querySelectorAll('input').forEach(i=>i.addEventListener('input',()=>{calc();if(i.id==='irs')drawHist()}));
+drawPresets();calc();drawHist();
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js',{scope:'./'});
 </script>
 </body>
 </html>
