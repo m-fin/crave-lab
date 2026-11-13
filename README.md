@@ -13,6 +13,15 @@ Every app lives in its own folder and is served at `https://m-fin.github.io/crav
 - [BTC Board](https://m-fin.github.io/crave-lab/btc-board/): ad-free Bitcoin board with price, fees, block height, and a halving countdown, including a fullscreen TV mode.
 - [Retrograph](https://m-fin.github.io/crave-lab/calc/): calculator with stat tests, distributions, and graphing. Not affiliated with Texas Instruments.
 
+## Screenshots
+
+<p>
+<img src="docs/screenshots/ride-check.png" width="200" alt="Ride Check: a 14.50 fare over 11 miles and 22 minutes rated MAYBE">
+<img src="docs/screenshots/wear-check.png" width="200" alt="Wear Check: plain-language outfit advice and a 12-hour strip for New York">
+<img src="docs/screenshots/btc-board.png" width="200" alt="BTC Board: price, sats per dollar, block height, fees and halving countdown">
+<img src="docs/screenshots/retrograph.png" width="200" alt="Retrograph calculator keypad and screen">
+</p>
+
 ## Run tests locally
 
 The calculator checks in `calc/test.js` (stats, parser, and graphing) run in plain Node. Nothing to install:
