@@ -1,0 +1,18 @@
+name: Accessibility
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  axe:
+    runs-on: ubuntu-latest   # has Google Chrome at /usr/bin/google-chrome
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm i --no-save --no-audit --no-fund puppeteer-core@23 axe-core@4
+      - run: node tools/a11y-check.mjs

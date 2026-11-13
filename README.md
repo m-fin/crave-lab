@@ -31,3 +31,12 @@ node calc/test.js
 ```
 
 Each check prints `PASS` or `FAIL`. The process exits `0` when they all pass and `1` when any fail. The same command runs in GitHub Actions on pull requests and on pushes to `main`.
+
+An accessibility check loads the landing page and all four apps in headless Chrome, at phone (390 px) and desktop
+(1280 px) widths, and runs [axe-core](https://github.com/dequelabs/axe-core) (WCAG 2 A/AA and best practices).
+Third-party API calls are stubbed, so it runs offline. It runs in CI too:
+
+```bash
+npm i --no-save puppeteer-core axe-core
+node tools/a11y-check.mjs
+```
