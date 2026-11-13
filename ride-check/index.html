@@ -113,8 +113,8 @@ footer a{color:var(--accent)}
 const $=id=>document.getElementById(id);
 const L=(k,d)=>{try{const v=localStorage.getItem('rc_'+k);return v===null?d:JSON.parse(v)}catch(e){return d}};
 const S=(k,v)=>localStorage.setItem('rc_'+k,JSON.stringify(v));
-const num=s=>{const n=parseFloat(String(s).replace(',','.').replace(/[^0-9.\-]/g,''));return isFinite(n)?n:0};
-const money=n=>'$'+n.toFixed(2);
+const num=s=>{let t=String(s).trim();t=t.includes('.')?t.replace(/,/g,''):/,\d{3}$/.test(t)?t.replace(/,/g,''):t.replace(',','.');const n=parseFloat(t.replace(/[^0-9.\-]/g,''));return isFinite(n)?n:0};
+const money=n=>(n<0?'-$':'$')+Math.abs(n).toFixed(2);
 const settings=['cpm','minMile','tgtMile','minHr','tgtHr','minRating','irs'];
 settings.forEach(k=>{const v=L(k,null);if(v!==null)$(k).value=v;});
 $('speak').checked=L('speak',false);
