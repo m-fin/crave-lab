@@ -96,6 +96,7 @@ function setTV(on){document.body.classList.toggle('tv',on);const u=new URL(locat
 $('tvb').onclick=()=>{setTV(true);document.documentElement.requestFullscreen?.().catch(()=>{})};
 document.addEventListener('dblclick',()=>{if(document.body.classList.contains('tv')){setTV(false);document.fullscreenElement&&document.exitFullscreen()}});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.body.classList.contains('tv'))setTV(false)});
+let fsTV=false;document.addEventListener('fullscreenchange',()=>{if(document.fullscreenElement){fsTV=document.body.classList.contains('tv')}else if(fsTV){fsTV=false;setTV(false)}});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')wake()});
 if(new URLSearchParams(location.search).get('tv')==='1')setTV(true);
 refresh();setInterval(refresh,60000);
