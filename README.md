@@ -24,13 +24,19 @@ Every app lives in its own folder and is served at `https://m-fin.github.io/crav
 
 ## Run tests locally
 
-The calculator checks in `calc/test.js` (stats, parser, and graphing) run in plain Node. Nothing to install:
+Unit tests run in plain Node. Nothing to install:
 
 ```bash
 node calc/test.js
+node ride-check/test.js
+node wear-check/test.js
 ```
 
-Each check prints `PASS` or `FAIL`. The process exits `0` when they all pass and `1` when any fail. The same command runs in GitHub Actions on pull requests and on pushes to `main`.
+- `calc/test.js` checks the calculator: stats, the expression parser, and graphing.
+- `ride-check/test.js` checks offer math ($/mile, $/hour, profit after car costs), the accept/maybe/pass thresholds, and input parsing.
+- `wear-check/test.js` checks outfit advice and the hourly strip from a synthetic Open-Meteo forecast. It does not call the network.
+
+Each file prints `PASS` or `FAIL` per check. The process exits `0` when every check passes and `1` when any fail. The same three commands run in GitHub Actions on pull requests and on pushes to `main`.
 
 An accessibility check loads the landing page and all four apps in headless Chrome, at phone (390 px) and desktop
 (1280 px) widths, and runs [axe-core](https://github.com/dequelabs/axe-core) (WCAG 2 A/AA and best practices).

@@ -109,12 +109,12 @@ footer a{color:var(--accent)}
 
 <footer>Free, no account. Doesn't read or touch the Uber or Lyft apps.<br>A <a href="../">Crave Lab</a> app by <a href="https://github.com/m-fin">Matthew "Frog" Finley</a>.</footer>
 </main>
+<script src="logic.js"></script>
 <script>
 const $=id=>document.getElementById(id);
 const L=(k,d)=>{try{const v=localStorage.getItem('rc_'+k);return v===null?d:JSON.parse(v)}catch(e){return d}};
 const S=(k,v)=>localStorage.setItem('rc_'+k,JSON.stringify(v));
-const num=s=>{let t=String(s).trim();t=t.includes('.')?t.replace(/,/g,''):/,\d{3}$/.test(t)?t.replace(/,/g,''):t.replace(',','.');const n=parseFloat(t.replace(/[^0-9.\-]/g,''));return isFinite(n)?n:0};
-const money=n=>(n<0?'-$':'$')+Math.abs(n).toFixed(2);
+const num=RideCheck.parseNum,money=RideCheck.money;
 const settings=['cpm','minMile','tgtMile','minHr','tgtHr','minRating','irs'];
 settings.forEach(k=>{const v=L(k,null);if(v!==null)$(k).value=v;});
 $('speak').checked=L('speak',false);
@@ -136,24 +136,11 @@ function drawPresets2(){[...$('presets').children].forEach((b,i)=>{const p=prese
 let cur=null,lastSpoken='',spT;
 function calc(){
  settings.forEach(k=>S(k,$(k).value));
- const fare=num($('fare').value),pm=num($('pmiles').value),tm=num($('tmiles').value),rm=num($('rmiles').value),mins=num($('mins').value),rating=$('rating').value.trim()?num($('rating').value):null;
- const cpm=num($('cpm').value),minMile=num($('minMile').value),tgtMile=num($('tgtMile').value),minHr=num($('minHr').value),tgtHr=num($('tgtHr').value),minR=$('minRating').value.trim()?num($('minRating').value):null;
- const miles=pm+tm+rm,v=$('verdict');
- if(!fare||!miles||!mins){v.textContent='-';v.className='';$('line').textContent='';$('why').textContent='Type the fare, miles and minutes.';cur=null;return;}
- const perMile=fare/miles,perHr=fare/mins*60,cost=miles*cpm,net=fare-cost,netHr=net/mins*60;
- const lvl=(x,mn,tg)=>x<mn?0:x>=tg?2:1;
- const lm=lvl(perMile,minMile,tgtMile),lh=lvl(netHr,minHr,tgtHr);
- let l=Math.min(lm,lh);const why=[];
- const nm=['under minimum','between minimum and target','at or above target'];
- why.push(`$/mi ${nm[lm]}`,`profit/hr ${nm[lh]}`);
- if(rm)why.push(`includes ${rm} mi return`);
- if(minR!==null&&rating!==null&&rating<minR&&l>0){l--;why.push(`rider rating ${rating} is under your ${minR} minimum, so knocked down one step`);}
- else if(minR!==null&&rating!==null&&rating<minR)why.push(`rider rating ${rating} is under your ${minR} minimum`);
- const V=['PASS','MAYBE','ACCEPT'][l];v.textContent=V;v.className='PMA'[l];
- $('line').textContent=`${money(perMile)}/mi · ${money(perHr).replace('.00','')}/hr gross · ${money(netHr)}/hr profit after ${money(cost)} car cost`;
- $('why').textContent=why.join(' · ');
- cur={t:Date.now(),fare,pm,tm,rm,miles,mins,rating,perMile,netHr,cost,v:V};
- if($('speak').checked&&'speechSynthesis' in window){clearTimeout(spT);spT=setTimeout(()=>{if(V!==lastSpoken){lastSpoken=V;speechSynthesis.cancel();speechSynthesis.speak(new SpeechSynthesisUtterance(V.toLowerCase()+', '+money(netHr)+' an hour'))}},900)}
+ const r=RideCheck.evaluate({fare:$('fare').value,pmiles:$('pmiles').value,tmiles:$('tmiles').value,rmiles:$('rmiles').value,mins:$('mins').value,rating:$('rating').value,cpm:$('cpm').value,minMile:$('minMile').value,tgtMile:$('tgtMile').value,minHr:$('minHr').value,tgtHr:$('tgtHr').value,minRating:$('minRating').value});
+ const v=$('verdict');v.textContent=r.verdict;v.className=r.className;$('line').textContent=r.line;$('why').textContent=r.why;
+ if(!r.ok){cur=null;return;}
+ cur={t:Date.now(),fare:r.fare,pm:r.pm,tm:r.tm,rm:r.rm,miles:r.miles,mins:r.mins,rating:r.rating,perMile:r.perMile,netHr:r.netHr,cost:r.cost,v:r.verdict};
+ if($('speak').checked&&'speechSynthesis' in window){clearTimeout(spT);spT=setTimeout(()=>{if(r.verdict!==lastSpoken){lastSpoken=r.verdict;speechSynthesis.cancel();speechSynthesis.speak(new SpeechSynthesisUtterance(r.verdict.toLowerCase()+', '+money(r.netHr)+' an hour'))}},900)}
 }
 function drawHist(){
  const irs=num($('irs').value);
