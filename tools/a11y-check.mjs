@@ -1,4 +1,4 @@
-// Accessibility check: loads the landing page and every app in headless Chrome and runs axe-core
+// Accessibility check: loads the landing page, every app, and Neon Snake 2084 in headless Chrome and runs axe-core
 // (WCAG 2 A/AA + best practices) on each, at phone and desktop widths. Exit 1 on any violation.
 //   npm i --no-save puppeteer-core axe-core && node tools/a11y-check.mjs
 // CHROME=/path/to/chrome overrides the browser (default /usr/bin/google-chrome).
@@ -10,7 +10,7 @@ import path from 'path';
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const axeSrc = fs.readFileSync(createRequire(import.meta.url).resolve('axe-core/axe.min.js'), 'utf8');
-const PAGES = ['', 'ride-check/', 'wear-check/', 'btc-board/', 'calc/'];
+const PAGES = ['', 'ride-check/', 'wear-check/', 'btc-board/', 'calc/', 'games/neon-snake/'];
 const VIEWPORTS = [{ width: 390, height: 844 }, { width: 1280, height: 800 }];
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.webmanifest': 'application/manifest+json', '.png': 'image/png' };
 
@@ -29,19 +29,26 @@ let failures = 0;
 try {
   for (const pg of PAGES) {
     for (const vp of VIEWPORTS) {
-      const page = await browser.newPage();
-      await page.setViewport(vp);
-      // keep the check offline and deterministic: third-party API calls (prices, weather) are answered with 503
-      await page.setRequestInterception(true);
-      page.on('request', (r) => (r.url().startsWith(base) || r.url().startsWith('data:') ? r.continue() : r.respond({ status: 503, body: '' })));
-      await page.goto(base + pg, { waitUntil: 'networkidle0' });
-      await page.evaluate(axeSrc);
-      const v = await page.evaluate(async () => (await axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'best-practice'] })).violations
-        .map((x) => `${x.impact} ${x.id}: ${x.nodes.map((n) => n.target.join(' ')).slice(0, 4).join(', ')}`));
-      const label = `${pg || '(landing)'} @${vp.width}px`;
-      if (v.length) { failures += v.length; console.log(`FAIL ${label}\n  ${v.join('\n  ')}`); }
-      else console.log(`PASS ${label}`);
-      await page.close();
+      // Each app registers a service worker that keeps running after its page closes.
+      // Once several of those workers are active, this Chrome fails the next new page
+      // ("Session with given id not found"). A context per check drops them with the page.
+      const ctx = await browser.createBrowserContext();
+      try {
+        const page = await ctx.newPage();
+        await page.setViewport(vp);
+        // keep the check offline and deterministic: third-party API calls (prices, weather) are answered with 503
+        await page.setRequestInterception(true);
+        page.on('request', (r) => (r.url().startsWith(base) || r.url().startsWith('data:') ? r.continue() : r.respond({ status: 503, body: '' })));
+        await page.goto(base + pg, { waitUntil: 'networkidle0' });
+        await page.evaluate(axeSrc);
+        const v = await page.evaluate(async () => (await axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'best-practice'] })).violations
+          .map((x) => `${x.impact} ${x.id}: ${x.nodes.map((n) => n.target.join(' ')).slice(0, 4).join(', ')}`));
+        const label = `${pg || '(landing)'} @${vp.width}px`;
+        if (v.length) { failures += v.length; console.log(`FAIL ${label}\n  ${v.join('\n  ')}`); }
+        else console.log(`PASS ${label}`);
+      } finally {
+        await ctx.close();
+      }
     }
   }
 } finally {

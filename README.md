@@ -34,15 +34,17 @@ Unit tests run in plain Node. Nothing to install:
 node calc/test.js
 node ride-check/test.js
 node wear-check/test.js
+node btc-board/test.js
 ```
 
 - `calc/test.js` checks the calculator: stats, the expression parser, and graphing.
 - `ride-check/test.js` checks offer math ($/mile, $/hour, profit after car costs), the accept/maybe/pass thresholds, and input parsing.
 - `wear-check/test.js` checks outfit advice and the hourly strip from a synthetic Open-Meteo forecast. It does not call the network.
+- `btc-board/test.js` checks the price and sats formatting, the halving countdown, fee and block-height parsing, which price source is used when one fails, and the TV-mode `?tv=1` query. It does not call the network.
 
-Each file prints `PASS` or `FAIL` per check. The process exits `0` when every check passes and `1` when any fail. The same three commands run in GitHub Actions on pull requests and on pushes to `main`.
+Each file prints `PASS` or `FAIL` per check. The process exits `0` when every check passes and `1` when any fail. The same four commands run in GitHub Actions on pull requests and on pushes to `main`.
 
-An accessibility check loads the landing page and all four apps in headless Chrome, at phone (390 px) and desktop
+An accessibility check loads the landing page, all four apps, and Neon Snake 2084 in headless Chrome, at phone (390 px) and desktop
 (1280 px) widths, and runs [axe-core](https://github.com/dequelabs/axe-core) (WCAG 2 A/AA and best practices).
 Third-party API calls are stubbed, so it runs offline. It runs in CI too:
 

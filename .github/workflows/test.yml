@@ -18,3 +18,4 @@ jobs:
           node calc/test.js
           node ride-check/test.js
           node wear-check/test.js
+          node btc-board/test.js
