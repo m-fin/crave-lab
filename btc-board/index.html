@@ -65,40 +65,27 @@ body.tv .wide{grid-column:span 2}body.tv #halvT{grid-column:span 3}
 </details>
 <footer>Free, no ads, no account. Data from <a href="https://mempool.space">mempool.space</a> (or your node) and Coinbase. Halving date is an estimate assuming ~10 minute blocks.<br>A <a href="../">Crave Lab</a> app by <a href="https://github.com/m-fin">Matthew "Frog" Finley</a>.</footer>
 </main>
+<script src="logic.js"></script>
 <script>
 const $=id=>document.getElementById(id);
-const DEF='https://mempool.space/api';
 $('api').value=localStorage.getItem('bb_api')||'';
-const base=()=>($('api').value.trim()||DEF).replace(/\/+$/,'');
 $('api').onchange=()=>{localStorage.setItem('bb_api',$('api').value.trim());refresh()};
-const nf=n=>n.toLocaleString('en-US');
-async function j(u){const r=await fetch(u,{cache:'no-store'});if(!r.ok)throw new Error(r.status);return r.headers.get('content-type')?.includes('json')?r.json():r.text()}
-async function getPrice(){
- try{const p=await j(base()+'/v1/prices');if(p.USD)return{usd:p.USD,src:'mempool'}}catch(e){}
- try{const c=await j('https://api.coinbase.com/v2/prices/BTC-USD/spot');return{usd:+c.data.amount,src:'Coinbase'}}catch(e){}
- const g=await j('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');return{usd:g.bitcoin.usd,src:'CoinGecko'};
-}
 async function refresh(){
- const errs=[];
- await Promise.all([
-  getPrice().then(p=>{$('price').textContent='$'+nf(Math.round(p.usd));$('sats').textContent=nf(Math.round(1e8/p.usd));$('psrc').textContent='via '+p.src}).catch(()=>errs.push('price')),
-  j(base()+'/blocks/tip/height').then(h=>{h=+h;$('height').textContent=nf(h);const next=Math.ceil((h+1)/210000)*210000,left=next-h;
-   $('halv').textContent=nf(left)+' blocks';const d=new Date(Date.now()+left*600e3);
-   $('halvDate').textContent=`at block ${nf(next)} · est. ${d.toLocaleDateString([], {year:'numeric',month:'short',day:'numeric'})} (~${Math.round(left*10/60/24)} days)`}).catch(()=>errs.push('height')),
-  j(base()+'/v1/fees/recommended').then(f=>{$('fFast').textContent=f.fastestFee;$('fHalf').textContent=f.halfHourFee;$('fHour').textContent=f.hourFee}).catch(()=>errs.push('fees'))
- ]);
- $('upd').textContent=new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
- $('status').textContent=errs.length?`Couldn't load: ${errs.join(', ')}. Retrying in 60s.`:'';
+ const v=await BtcBoard.load({api:$('api').value});
+ if(v.price!=null){$('price').textContent=v.price;$('sats').textContent=v.sats;$('psrc').textContent=v.source}
+ if(v.height!=null){$('height').textContent=v.height;$('halv').textContent=v.halving;$('halvDate').textContent=v.halvingDetail}
+ if(v.fees){$('fFast').textContent=v.fees.fast;$('fHalf').textContent=v.fees.half;$('fHour').textContent=v.fees.hour}
+ $('upd').textContent=v.updated;$('status').textContent=v.status;
 }
 let lock=null;
 async function wake(){try{if('wakeLock' in navigator&&document.body.classList.contains('tv'))lock=await navigator.wakeLock.request('screen')}catch(e){}}
-function setTV(on){document.body.classList.toggle('tv',on);const u=new URL(location);on?u.searchParams.set('tv','1'):u.searchParams.delete('tv');history.replaceState(null,'',u);if(on)wake();else if(lock){lock.release();lock=null}}
+function setTV(on){document.body.classList.toggle('tv',on);const u=new URL(location);u.search=BtcBoard.tvSearch(u.search,on);history.replaceState(null,'',u);if(on)wake();else if(lock){lock.release();lock=null}}
 $('tvb').onclick=()=>{setTV(true);document.documentElement.requestFullscreen?.().catch(()=>{})};
 document.addEventListener('dblclick',()=>{if(document.body.classList.contains('tv')){setTV(false);document.fullscreenElement&&document.exitFullscreen()}});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.body.classList.contains('tv'))setTV(false)});
 let fsTV=false;document.addEventListener('fullscreenchange',()=>{if(document.fullscreenElement){fsTV=document.body.classList.contains('tv')}else if(fsTV){fsTV=false;setTV(false)}});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')wake()});
-if(new URLSearchParams(location.search).get('tv')==='1')setTV(true);
+if(BtcBoard.tvOn(location.search))setTV(true);
 refresh();setInterval(refresh,60000);
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js',{scope:'./'});
 </script>
