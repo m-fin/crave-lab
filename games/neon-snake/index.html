@@ -1,0 +1,78 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Neon Snake 2084 — watch the AI, then try to beat it</title>
+<style>
+html,body{margin:0;background:#050a06;color:#b9ffb0;font-family:"DejaVu Sans Mono",monospace;height:100%;overflow:hidden;touch-action:none}
+#bar{position:fixed;bottom:0;left:0;right:0;display:flex;gap:8px;justify-content:center;padding:8px;z-index:2;flex-wrap:wrap}
+button,input{background:#14301a;color:#7dff7a;border:1px solid #7dff7a;font:inherit;padding:6px 10px;border-radius:6px}
+input{width:6em}canvas{display:block;width:100vw;height:100vh}
+#pad{position:fixed;bottom:60px;right:10px;display:none;grid-template-columns:repeat(3,56px);gap:4px}#pad button{height:56px;font-size:22px}
+@media (pointer:coarse){#pad{display:grid}}
+
+#toast{position:fixed;left:50%;top:14px;transform:translateX(-50%);padding:8px 14px;font:600 13px "DejaVu Sans Mono",monospace;color:#b9ffb0;background:rgba(8,20,12,.9);border:1px solid #7dff7a;border-radius:8px;opacity:0;pointer-events:none;transition:opacity .3s;z-index:5;text-align:center}
+#toast.show{opacity:1}
+#paused{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.45);color:#7dff7a;font:700 28px "DejaVu Sans Mono",monospace;z-index:4;pointer-events:none}
+#paused.show{display:flex}
+</style></head><body>
+<div id="bar"><button id="watch">▶ WATCH AI</button><button id="vs">🎮 YOU vs BOTS</button><label>seed <input id="seed" type="number"></label><button id="speed">speed 1x</button></div>
+<div id="toast"></div><div id="paused">PAUSED</div><canvas id="c"></canvas>
+<div id="pad"><span></span><button data-d="0">▲</button><span></span><button data-d="3">◀</button><button data-d="2">▼</button><button data-d="1">▶</button></div>
+<script src="game.js"></script><script src="bots.js"></script><script src="render.js"></script>
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');let W,H;
+function resize(){const d=devicePixelRatio||1;W=innerWidth*d;H=innerHeight*d;cv.width=W;cv.height=H}addEventListener('resize',resize);resize();
+const q=new URLSearchParams(location.search);let mode=q.get('mode')==='vs'?'vs':'watch',seed=+q.get('seed')||Math.floor(Math.random()*1e6),speed=1;
+let st,prev,players,acc=0,last=performance.now(),pending=[],best=+localStorage.ns2084best||0,attempts=+localStorage.ns2084tries||0;
+function start(){document.getElementById('seed').value=seed;
+  players=B().map(r=>({...r}));if(mode==='vs')players[0]={name:'YOU',color:'#ffffff',brain:null,blurb:'arrows / WASD / swipe'};
+  st=NSGame.init(seed,players);prev=st;st.snakes.forEach((s,i)=>s.blurb=players[i].blurb);pending=[];acc=0;
+  if(mode==='vs'){attempts++;localStorage.ns2084tries=attempts}}
+function B(){return NSBots.ROSTER}
+function tick(){prev=st;const acts=players.map((p,i)=>{if(!st.snakes[i].alive)return null;if(!p.brain){return pending.length?pending.shift():null}return p.brain(st,i)});
+  st=NSGame.step(st,acts);st.snakes.forEach((s,i)=>s.blurb=players[i].blurb);
+  if(st.over&&mode==='vs'){const me=st.snakes[0];if(me.score>best){best=me.score;localStorage.ns2084best=best}}}
+function key(d){if(mode!=='vs')return;if(st.over){start();return}const lastD=pending.length?pending[pending.length-1]:st.snakes[0].dir;if(d!==lastD&&(d+2)%4!==lastD&&pending.length<3)pending.push(d)}
+addEventListener('keydown',e=>{const m={ArrowUp:0,KeyW:0,ArrowRight:1,KeyD:1,ArrowDown:2,KeyS:2,ArrowLeft:3,KeyA:3}[e.code];if(m!=null){key(m);e.preventDefault()}if(e.code==='Space'&&st.over)start()});
+let ts=null;cv.addEventListener('touchstart',e=>{ts=[e.touches[0].clientX,e.touches[0].clientY]});
+cv.addEventListener('touchend',e=>{if(!ts)return;const dx=e.changedTouches[0].clientX-ts[0],dy=e.changedTouches[0].clientY-ts[1];ts=null;
+  if(Math.max(Math.abs(dx),Math.abs(dy))<20){if(st.over)start();return}key(Math.abs(dx)>Math.abs(dy)?(dx>0?1:3):(dy>0?2:0))});
+document.querySelectorAll('#pad button').forEach(b=>b.onclick=()=>key(+b.dataset.d));
+document.getElementById('watch').onclick=()=>{mode='watch';seed=Math.floor(Math.random()*1e6);start()};
+document.getElementById('vs').onclick=()=>{mode='vs';start()};
+document.getElementById('seed').onchange=e=>{seed=+e.target.value||1;start()};
+document.getElementById('speed').onclick=e=>{speed=speed>=4?1:speed*2;e.target.textContent='speed '+speed+'x'};
+
+const toastEl=document.getElementById('toast'), pausedEl=document.getElementById('paused');
+let toastTimer=0, paused=false, padEdge={a:false,menu:false,dirs:{}};
+function toast(msg){toastEl.textContent=msg;toastEl.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>toastEl.classList.remove('show'),2600)}
+addEventListener('gamepadconnected',()=>toast('Controller connected — A: start · Menu: pause'));
+addEventListener('gamepaddisconnected',()=>toast('Controller disconnected'));
+function pollPad(){
+  const g=navigator.getGamepads? [...navigator.getGamepads()].find(Boolean):null; if(!g) return;
+  const DZ=0.4;
+  const a=!!g.buttons[0]?.pressed, menu=!!g.buttons[9]?.pressed;
+  if(a && !padEdge.a){ if(mode!=='vs'){mode='vs';start()} else if(st.over) start(); }
+  if(menu && !padEdge.menu){ paused=!paused; pausedEl.classList.toggle('show', paused); }
+  padEdge.a=a; padEdge.menu=menu;
+  if(mode!=='vs' || paused) return;
+  const want=[];
+  if(g.buttons[12]?.pressed) want.push(0);
+  if(g.buttons[15]?.pressed) want.push(1);
+  if(g.buttons[13]?.pressed) want.push(2);
+  if(g.buttons[14]?.pressed) want.push(3);
+  const ax0=g.axes[0]||0, ax1=g.axes[1]||0;
+  if(Math.abs(ax0)>DZ || Math.abs(ax1)>DZ){
+    want.push(Math.abs(ax0)>Math.abs(ax1)?(ax0>0?1:3):(ax1>0?2:0));
+  }
+  for(const d of want){ if(!padEdge.dirs[d]) key(d); padEdge.dirs[d]=true; }
+  for(const d of [0,1,2,3]) if(!want.includes(d)) padEdge.dirs[d]=false;
+}
+function loop(now){pollPad();if(paused){last=now;requestAnimationFrame(loop);return;}const tps=(mode==='vs'?8:10)*(mode==='vs'?1:speed);acc+=(now-last)/1000;last=now;
+  if(!st.over)while(acc>1/tps){tick();acc-=1/tps;if(st.over)break}
+  const t=st.over?1:Math.min(1,acc*tps);const ov={subtitle:mode==='vs'?'YOU vs 3 AIs · eat, survive, win':'4 AIs · 1 board · last snake standing',round:`SEED ${seed}`,
+    footer:mode==='vs'?`best ${best} · attempts ${attempts}`:'watch the AI — then hit YOU vs BOTS'};
+  if(st.over){const w=st.snakes[st.winner];ov.banner=(w.name==='YOU'?'YOU WIN!':w.name+' WINS');ov.bannerColor=w.color;ov.banner2=mode==='vs'?'tap / space to retry':`${w.score} pts in ${st.tick} ticks`}
+  else if(mode==='vs'&&st.tick===0)ov.banner='READY',ov.banner2='press an arrow / swipe';
+  if(mode==='vs'&&st.tick===0&&!pending.length){acc=0}
+  NSRender.drawFrame(ctx,W,H,st,prev,t,ov);requestAnimationFrame(loop)}
+start();requestAnimationFrame(loop);
+</script></body></html>

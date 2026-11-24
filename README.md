@@ -4,7 +4,7 @@
 
 Small, free web apps by Matthew "Frog" Finley, each one built from real posts where people said they wish a tool existed.
 
-Every app lives in its own folder and is served at `https://m-fin.github.io/crave-lab/<app-name>/`.
+Every app or game lives in its own folder and is served at `https://m-fin.github.io/crave-lab/<path>/`.
 
 ## Apps
 
@@ -12,6 +12,10 @@ Every app lives in its own folder and is served at `https://m-fin.github.io/crav
 - [Wear Check](https://m-fin.github.io/crave-lab/wear-check/): what to wear now and over the next 12 hours, in one sentence, from the Open-Meteo forecast.
 - [BTC Board](https://m-fin.github.io/crave-lab/btc-board/): ad-free Bitcoin board with price, fees, block height, and a halving countdown, including a fullscreen TV mode.
 - [Retrograph](https://m-fin.github.io/crave-lab/calc/): calculator with stat tests, distributions, and graphing. Not affiliated with Texas Instruments.
+
+## Games
+
+- [Neon Snake 2084](https://m-fin.github.io/crave-lab/games/neon-snake/): watch AI snakes compete, or play against the bots in the browser.
 
 ## Screenshots
 
